@@ -24,7 +24,7 @@ class Apartment(Model):
     dorm = BooleanField(null=True)
     
     class Meta:
-        database = db # This model uses the "people.db" database.
+        database = db
 
 db.connect()
 db.create_tables([Apartment])
@@ -32,4 +32,6 @@ db.create_tables([Apartment])
 apartments = get_apartments()
 
 for a in apartments:
+    if not a:
+        continue
     Apartment.create(**a)
