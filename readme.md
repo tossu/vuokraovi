@@ -15,5 +15,5 @@ docker cp vuokra:/opt/apartments.db .
 
 # You can use db from bash like this
 ```
-sqlite3 apartments.db "select 'https://www.vuokraovi.com/vuokra-asunto/tampere/keskusta/kerrostalo/' || number from apartment WHERE room_count = \"Kaksio\" and district = \"Keskusta\" and rent <= 601";
+sqlite3 apartments.db "select 'https://www.vuokraovi.com/vuokra-asunto/jyvaskyla/keskusta/kerrostalo/' || number from apartment WHERE room_count = \"Kaksio\" and district = \"Keskusta\" and rent <= 601";
 ```
