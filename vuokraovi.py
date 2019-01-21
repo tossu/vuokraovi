@@ -1,5 +1,7 @@
-from scrapers import get_apartments
 from peewee import *
+import multiprocessing
+from search import city_apartment_ids
+from apartment import get_apartment
 
 db = SqliteDatabase('apartments.db')
 
@@ -26,12 +28,16 @@ class Apartment(Model):
     class Meta:
         database = db
 
-db.connect()
-db.create_tables([Apartment])
+if __name__ == "__main__":
+    apartment_ids = city_apartment_ids("Jyväskylä")
 
-apartments = get_apartments()
+    db.connect()
+    db.create_tables([Apartment])
 
-for a in apartments:
-    if not a:
-        continue
-    Apartment.create(**a)
+    pool = multiprocessing.Pool()
+    apartments = pool.map(get_apartment, apartment_ids)
+
+    for a in apartments:
+        if not a:
+            continue
+        Apartment.create(**a)

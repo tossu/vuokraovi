@@ -121,66 +121,10 @@ def parse_target(target_id):
     
     return info
 
-def get_apartment(target_id):
+def get_apartment(page_id):
     try:
-        return parse_target(target_id)
+        return parse_target(page_id)
     except Exception as e:
-        print("ERROR AT: " + str(target_id))
-        print(str(e))
+        print("ERROR AT: " + str(page_id))
+        # print(str(e))
         return {}
-
-def fetch_site(url):
-    request = requests.get(url)
-    return BeautifulSoup(request.text, "html.parser")
-
-def parse_target_urls(soup):
-    targets = soup.body.find_all('div', attrs={'class' : 'list-item-container'})
-
-    urls = []
-    for target in targets:
-        target_url = target.find('div', attrs={'class': 'row top-row'}).find('a', href=True)['href']
-        urls.append(target_url)
-
-    return urls
-
-def parse_target_id(url):
-    return int(url.split('?')[0].split('/')[-1])
-
-def parse_target_ids(site):
-    return list(map(parse_target_id, parse_target_urls(site)))
-
-def parse_pagination_last_page(site):
-    sites = site.body.find('ul', attrs={'class', 'pagination'}).find_all('li')
-    return int(sites[-2].text.strip())
-
-def process_page(url):
-    site = fetch_site(url)
-    return parse_target_ids(site)
-
-def search_page_url(checksum, searchid, page=None):
-    url = "https://www.vuokraovi.com/vuokra-asunnot?checksum=" + str(checksum) + "&searchid=" + str(searchid)
-    if page:
-        return url + "&page=" + str(page)
-    return url
-    
-def search_targets():
-    checksum = 981131
-    searchid = 223191
-    
-    first_site = fetch_site(search_page_url(checksum, searchid))
-    ids = parse_target_ids(first_site)
-
-    last_page = parse_pagination_last_page(first_site)
-    pages = list(map(lambda page: search_page_url(checksum, searchid, page), range(2, last_page+1)))
-    
-    pool = multiprocessing.Pool()
-    result = sum(pool.map(process_page, pages), []) # sum flattens list
-    
-    ids.extend(result)
-    return ids
-
-def get_apartments():
-    targets = search_targets()
-    pool = multiprocessing.Pool()
-
-    return pool.map(get_apartment, targets)
