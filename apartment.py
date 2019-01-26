@@ -1,130 +1,130 @@
 import requests
 from bs4 import BeautifulSoup
 import multiprocessing
-import re
+from functools import reduce
 
-def parse_row_header(info_row):
-    return info_row.find('th').text.strip().replace(":", "")
+ROOM_COUNT = {
+    "Yksiö": 1,
+    "Kaksio": 2,
+    "3 huonetta": 3,
+    "4 huonetta": 4,
+    "5 +": 5
+}
+
+SAUNA_OWN = 1
+SAUNA_CONDOMINIUM = 2
+SAUNA_BOTH = 3
+
+def parse_location(row):
+    try:
+        elements = row.find('td').find_all('a')
+        elements.append(row.find('td').find('span'))
+        location = list(map(lambda x: x.text, elements))
+        return {"city": location[0].strip().lower(),
+                "zone": location[1].strip().lower(),
+                "street": location[2].strip().lower()}
+    except Exception:
+        print("error in parse_location, with value: " + row)
+        return {}
+
+def parse_rent(content):
+    # TODO: Make tests
+    try:
+        content = content.replace(",", ".")
+        numbers = [s for s in list(content) if s.isdigit() or s == "."]
+        return float("".join(numbers))
+    except Exception:
+        print("error in parse_rent, with value: " + content + " numbers: " + str(numbers))
+        return None
+
+def parse_row(panel_header, row):
+    header = row.find('th').text.strip().replace(":", "").lower()
+       
+    if not header in ["asumismuoto", "kohdenumero", "vuokra", "asuinpinta-ala", "huoneiden lukumäärä", "tilat ja varustelu", "sijainti"]:
+        return {}
+
+    content = row.find('td').get_text(strip=True)
+    
+    if header == "asumismuoto" and content != "vapaarahoitteinen":
+        raise Exception("Asumismuoto ei ole vapaarahoitteinen!")
+
+    if header == "kohdenumero":
+        return {"id": int(content)}
+
+    if header == "vuokra":
+        if not "€/kk" in content:
+            raise Exception("Vuokra ei ole kuukausi maksullinen!")
+        return {"rent": parse_rent(content)}
+
+    if header == "asuinpinta-ala":
+        try:
+            return {"squares": float(content.split(" ")[0].replace(",", "."))}
+        except Exception:
+            print("error in asuinpinta-ala, with value: " + content)
+            return {}
+
+    if header == "huoneiden lukumäärä":
+        return {"rooms": ROOM_COUNT[content]}
+    
+    if panel_header == "perustiedot" and header == "tilat ja varustelu":
+        data = {}
+        if "oma sauna" in content:
+            data["sauna"] = SAUNA_OWN
+        if "taloyhtiössä sauna" in content:
+            data["sauna"] = SAUNA_CONDOMINIUM
+        if "oma sauna" in content and "taloyhtiössä sauna" in content:
+            data["sauna"] = SAUNA_BOTH
+        if "parveke" in content:
+            data["balcony"] = True
+        return data
+
+    if panel_header == "taloyhtiö" and header == "tilat ja varustelu":
+        if "elevator" in content:
+            return {"elevator": True}
+
+    if header == "sijainti":
+        return parse_location(row)
+   
+    # Default case
+    return {}
 
 def parse_panel(panel):
-    rows = panel.find_all('tr') 
-    panel = {}
+    panel_header = panel.find('h3', attrs={'class': 'panel-title'})\
+            .text.strip().lower()
 
-    for row in rows:
-        header = row.find('th').text.strip().replace(":", "").lower()
-        content = row.find('td')
-        panel[header] = content
+    # "perustiedot" and "kustannukset" are in every apartment, "taloyhtiö" is not always
+    if not panel_header in ["perustiedot", "kustannukset", "taloyhtiö"]:
+        return {}
 
-    return panel
-
-def to_boolean(s):
-    return s == 'sallittu'
-
-def to_number_float(s):
-    s = parse_text(s)
-    return float(s.split(' ')[0].replace(',', '.'))
-
-def to_number_int(s):
-    s = parse_text(s)
-    if s.isdigit():
-        return int(s)
-    return None
-
-def parse_city(s):
-    return parse_text(s.find_all('a')[0])
-
-def parse_district(s):
-    s = parse_text(s.find_all('a')[1])
-    if s == '':
-        return None
-    return s
-
-def parse_text(s):
-    return s.text.strip()
-
-def parse_floors(s):
-    try:
-        s = parse_text(s)
-        p = re.match('^([0-9]{1,2})\/?([0-9]{1,2})?[^0-9]?', s)
-        if p.group(2) is None:
-            return (int(p.group(1)), None)
-        return (int(p.group(1)), int(p.group(2)))
-    except Exception as e:
-        print("error in parse_floors, with value: " + s)
-        print(e)
-        return (None, None)
-
-def parse_rent(s):
-    try:
-        s = parse_text(s)
-        p = re.match('^([0-9]{1}.?[0-9]+\,?[0-9]+) €/kk$', s)
-        p = re.sub('[^0-9]','', p.group(1)).replace(',', '.')
-        return float(p)
-    except Exception as e:
-        print("error in parse_rent, with value: " + s)
-        print(e)
-        raise
+    rows = panel.find_all('tr')
+    return reduce(lambda l, row: l.update(parse_row(panel_header, row)) or l, rows, {})
 
 
-def parse_target(target_id):
-    url = "https://www.vuokraovi.com/vuokra-asunto/jyvaskyla/keljonkangas/kerrostalo/" + str(target_id)
+def apartment_data(apartment_id):
+    url = "https://www.vuokraovi.com/" + str(apartment_id)
 
     request = requests.get(url)
+    # sometimes apartment is removed and returns 404
+    if request.status_code != 200:
+        return None # TODO: FIX THIS, throw exception?
+
     soup = BeautifulSoup(request.text, "html.parser")
-    x = soup.body.find('div', attrs={'id': 'accordion'})
-    panels = x.find_all('div', attrs={'class': 'panel panel-default'})
+    panels = soup.find_all('div', attrs={'class': 'panel panel-default'})
    
+    return reduce(lambda l, panel: l.update(parse_panel(panel)) or l, panels, {})
+
+def get_apartment(apartment_id):
     try:
-        description = panels[0].find('div', attrs={'id': 'itempageDescription'}).text.strip()
-    except Exception:
-        description = None
-
-    # TODO rename x
-    x = {**parse_panel(panels[2]), # Perustiedot (Kerros, Kuvaus, Huoneiden lukumäärä, Rakennusvuosi, Asuinpinta-ala, Yleiskunto, Kohdenumero)
-         **parse_panel(panels[3]), # Kustannukset (Vuokra)
-         **parse_panel(panels[4]), # Kohteen kuvaus (Lemmikit sallittu, Tupakointi sallittu)
-         **parse_panel(panels[5])} # Taloyhtiö (Energialuokka, Tilat ja varustelut (hissi))
-
-    info = {}
-
-    def helper(oname, formatf=parse_text):
-        if oname in x and not x[oname] == '':
-            return formatf(x[oname])
-        return None
-        
-    info['number'] = target_id
-    info['build_year'] = helper('rakennusvuosi', to_number_int)
-
-    info['squares'] = helper('asuinpinta-ala', to_number_float)
-
-    info['pets'] = helper('lemmikit sallittu', to_boolean)
-    info['smoking'] = helper('tupakointi sallittu', to_boolean)
-
-    info['city'] = helper('sijainti', parse_city)
-    info['district'] = helper('sijainti', parse_district)
-
-    floor, max_floor = (None, None) if 'kerros' not in x else parse_floors(x['kerros'])
-    info['floor'] = floor
-    info['max_floor'] = max_floor
-
-    info['rent'] = parse_rent(x['vuokra'])
-
-    info['building_type'] = helper('tyyppi')
-    info['short_description'] = helper('kuvaus')
-    info['room_count'] = helper('huoneiden lukumäärä') 
-    info['condition'] = helper('yleiskunto')
-    info['estate'] = helper('tilat ja varustelu')
-    info['energy_effiency'] = helper('energialuokka')
-
-    info['dorm'] = False if 'kuvaus' not in x else 'solu' in parse_text(x['kuvaus']).lower()
-    info['description'] = description
-    
-    return info
-
-def get_apartment(page_id):
-    try:
-        return parse_target(page_id)
+        return apartment_data(apartment_id)
     except Exception as e:
-        print("ERROR AT: " + str(page_id))
-        # print(str(e))
+        print("ERROR AT: " + str(apartment_id))
+        print(str(e))
         return {}
+
+if __name__ == "__main__":
+    import pprint
+    pp = pprint.PrettyPrinter(depth=6)
+    #pp.pprint(get_apartment(705286))
+    #pp.pprint(get_apartment(724334))
+    # pp.pprint(get_apartment(803895))
+    pp.pprint(get_apartment(610266))    
