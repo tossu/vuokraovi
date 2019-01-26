@@ -7,6 +7,6 @@ RUN pip install -r /opt/requirements.txt
 
 COPY apartment.py /opt/apartment.py
 COPY search.py /opt/search.py
-COPY vuokraovi.py /opt/vuokraovi.py
+COPY database.py /opt/database.py
 
-CMD ["python", "/opt/vuokraovi.py"]
+CMD ["python", "/opt/database.py"]

@@ -7,7 +7,7 @@ Scripti tekee "aparments.db" sqlite tietokannan jota on helppo selata.
 virtualenv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python vuokraovi.py
+python database.py
 ```
 
 # Or use docker
