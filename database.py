@@ -22,8 +22,8 @@ class Apartment(Model):
 if __name__ == "__main__":
     apartment_ids = city_apartment_ids("Jyväskylä")
 
-#    db.connect()
-#    db.create_tables([Apartment])
+    db.connect()
+    db.create_tables([Apartment])
 
     pool = multiprocessing.Pool()
     apartments = pool.map(get_apartment, apartment_ids)
@@ -31,5 +31,4 @@ if __name__ == "__main__":
     for a in apartments:
         if not a:
             continue
-         print(a)
-#        Apartment.create(**a)
+        Apartment.create(**a)
