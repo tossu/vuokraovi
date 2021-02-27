@@ -39,12 +39,12 @@ def parse_rent(content):
 
 def parse_row(panel_header, row):
     header = row.find('th').text.strip().replace(":", "").lower()
-       
+
     if not header in ["asumismuoto", "kohdenumero", "vuokra", "asuinpinta-ala", "huoneiden lukumäärä", "tilat ja varustelu", "sijainti"]:
         return {}
 
     content = row.find('td').get_text(strip=True)
-    
+
     if header == "asumismuoto" and content != "vapaarahoitteinen":
         raise Exception("Asumismuoto ei ole vapaarahoitteinen!")
 
@@ -65,7 +65,7 @@ def parse_row(panel_header, row):
 
     if header == "huoneiden lukumäärä":
         return {"rooms": ROOM_COUNT[content]}
-    
+
     if panel_header == "perustiedot" and header == "tilat ja varustelu":
         data = {}
         if "oma sauna" in content:
@@ -84,7 +84,7 @@ def parse_row(panel_header, row):
 
     if header == "sijainti":
         return parse_location(row)
-   
+
     # Default case
     return {}
 
@@ -110,7 +110,7 @@ def apartment_data(apartment_id):
 
     soup = BeautifulSoup(request.text, "html.parser")
     panels = soup.find_all('div', attrs={'class': 'panel panel-default'})
-   
+
     return reduce(lambda l, panel: l.update(parse_panel(panel)) or l, panels, {})
 
 def get_apartment(apartment_id):

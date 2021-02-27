@@ -7,7 +7,7 @@ Scripti tekee "aparments.db" sqlite tietokannan jota on helppo selata.
 virtualenv venv
 source venv/bin/activate
 pip install -r requirements.txt
-python database.py
+python src/main.py
 ```
 
 # Or use docker
@@ -19,5 +19,9 @@ docker cp vuokra:/opt/apartments.db .
 
 # You can use db from bash like this
 ```
-sqlite3 apartments.db "select 'https://www.vuokraovi.com/vuokra-asunto/jyvaskyla/keskusta/kerrostalo/' || number from apartment WHERE room_count = \"Kaksio\" and district = \"Keskusta\" and rent <= 601";
+sqlite3 apartments.db "select 'https://www.vuokraovi.com/vuokra-asunto/jyvaskyla/kortepohja/kerrostalo/' || id from apartments where rooms = 2 and rent < 630 and zone='kortepohja'";
+```
+
+```
+sqlite3 apartments.db "select 'https://www.vuokraovi.com/vuokra-asunto/jyvaskyla/' || zone || '/kerrostalo/' || id from apartments where rooms = 2 and rent < 630 and squares > 50";
 ```

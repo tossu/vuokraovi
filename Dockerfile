@@ -5,8 +5,6 @@ WORKDIR /opt
 COPY requirements.txt /opt/requirements.txt
 RUN pip install -r /opt/requirements.txt
 
-COPY apartment.py /opt/apartment.py
-COPY search.py /opt/search.py
-COPY database.py /opt/database.py
+COPY src/ /opt
 
-CMD ["python", "/opt/database.py"]
+CMD ["python", "/opt/main.py"]

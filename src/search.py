@@ -15,9 +15,9 @@ def search_page_apartment_ids(url):
     soup = BeautifulSoup(request.text, "html.parser")
     link_elements = [row.find('a', attrs={'class': 'list-item-link'},  href=True) for row in soup.body.find_all('div', attrs={'class': 'row top-row'})]
     return list(map(lambda a: a['href'].split('?')[0].split('/')[-1], link_elements))
-    
+
 def city_apartment_ids(city):
-    """ We scrape every search page for apartment page IDs """
+    """ Scrapes every search page for apartment page IDs """
 
     search_page_html = requests.get(search_page_url(city))
     search_page_soup= BeautifulSoup(search_page_html.text, "html.parser")
@@ -26,10 +26,10 @@ def city_apartment_ids(city):
     search_pages_range = range(1, last_page_number+1)
 
     search_page_urls = list(map(lambda page: search_page_url(city, page), search_pages_range))
-    
+
     pool = multiprocessing.Pool()
     apartment_ids = sum(pool.map(search_page_apartment_ids, search_page_urls), []) # sum flattens list
-   
+
     return apartment_ids
 
 if __name__ == "__main__":
